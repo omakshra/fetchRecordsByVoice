@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+venv/
+.env
+*.db
+*.sqlite3
+
+# ASP.NET / Visual Studio
+bin/
+obj/
+*.exe
+*.dll
+*.user
+*.suo
+.vs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
