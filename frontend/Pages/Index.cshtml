@@ -1,20 +1,103 @@
 ﻿@page
 @model IndexModel
-<h2>Flask Connection Test</h2>
 
-<button onclick="checkFlaskConnection()">Ping Flask</button>
+<h2>Voice-Based Record Fetching</h2>
 
-<p id="pingResult"></p>
+<button id="startBtn">🎤 Start Voice Input</button>
+
+<p>Status: <span id="status">Idle</span></p>
+<p>Transcript: <span id="transcript"></span></p>
+
+<p id="confirmationPrompt" style="display:none;">
+    Did you say: <b><span id="confirmationText"></span></b>?
+    <button onclick="confirmYes()">Yes</button>
+    <button onclick="confirmNo()">No</button>
+</p>
+
+<p id="recordResult"></p>
 
 <script>
-    async function checkFlaskConnection() {
-        try {
-            const response = await fetch("http://localhost:5000/ping");
-            const data = await response.json();
-            document.getElementById("pingResult").innerText = "Success: " + data.message;
-        } catch (error) {
-            document.getElementById("pingResult").innerText = "Failed to connect to Flask.";
-            console.error(error);
+    const startBtn = document.getElementById('startBtn');
+    const statusEl = document.getElementById('status');
+    const transcriptEl = document.getElementById('transcript');
+    const confirmationPrompt = document.getElementById('confirmationPrompt');
+    const confirmationText = document.getElementById('confirmationText');
+    const recordResult = document.getElementById('recordResult');
+
+    let recognition;
+    let lastTranscript = '';
+
+    if (!('webkitSpeechRecognition' in window)) {
+        alert('Speech Recognition not supported in this browser. Please use Chrome.');
+    } else {
+        recognition = new webkitSpeechRecognition();
+        recognition.lang = 'en-US';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
+
+        recognition.onstart = () => {
+            statusEl.textContent = 'Listening... Speak now.';
+        };
+
+        recognition.onresult = (event) => {
+            lastTranscript = event.results[0][0].transcript;
+            transcriptEl.textContent = lastTranscript;
+
+            // Show confirmation prompt
+            confirmationText.textContent = lastTranscript;
+            confirmationPrompt.style.display = 'block';
+
+            // Speak confirmation prompt
+            speak(`Did you say ${lastTranscript}? Please confirm yes or no.`);
+        };
+
+        recognition.onerror = (event) => {
+            statusEl.textContent = 'Error: ' + event.error;
+        };
+
+        recognition.onend = () => {
+            statusEl.textContent = 'Idle';
+        };
+    }
+
+    startBtn.onclick = () => {
+        recordResult.textContent = '';
+        confirmationPrompt.style.display = 'none';
+        transcriptEl.textContent = '';
+        recognition.start();
+    };
+
+    function confirmYes() {
+        confirmationPrompt.style.display = 'none';
+        statusEl.textContent = 'Fetching record...';
+
+        fetch('http://localhost:5000/fetch-record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query: lastTranscript })
+        })
+            .then(res => res.json())
+            .then(data => {
+                statusEl.textContent = 'Record fetched.';
+                recordResult.textContent = JSON.stringify(data, null, 2);
+                speak('Record fetched successfully.');
+            })
+            .catch(err => {
+                statusEl.textContent = 'Error fetching record.';
+                speak('There was an error fetching the record.');
+            });
+    }
+
+    function confirmNo() {
+        confirmationPrompt.style.display = 'none';
+        statusEl.textContent = 'Please try again.';
+        speak('Please try again. Press start to speak.');
+    }
+
+    function speak(text) {
+        if ('speechSynthesis' in window) {
+            const utter = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(utter);
         }
     }
 </script>
