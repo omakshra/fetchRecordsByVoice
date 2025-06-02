@@ -37,3 +37,22 @@ Dictates entire shift summary
 Flask processes and returns summarized version
 Summary is stored or shown on screen
 
+Dashboard (Home)
+│
+├── Records
+│   ├── Add Citizen
+│   ├── Add Criminal
+│   └── 🎤 Voice Search for Records
+│
+├── Reports
+│   ├── Manual Form
+│   └── 🎤 Voice-Guided Form Fill
+│
+├── Shift Summary
+│   └── 🎤 Voice Dictation ➝ Flask ➝ Summary
+│
+├── Evidence Summary (Coming soon)
+│   └── 🖼️ Upload Image ➝ Flask AI ➝ Caption + Summary
+│
+└── AI Assistant Chatbot (Coming soon)
+    └── 💬 Talk or Type to Ask Questions
