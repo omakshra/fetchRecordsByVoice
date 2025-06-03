@@ -1,0 +1,46 @@
+@model Frontend.Models.Citizen
+
+<h2>Add Citizen Record</h2>
+
+<form asp-controller="Records" asp-action="AddCitizen" method="post">
+    <div class="form-group">
+        <label>Name</label>
+        <input asp-for="Name" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Age</label>
+        <input asp-for="Age" class="form-control" type="number" />
+    </div>
+    <div class="form-group">
+        <label>Address</label>
+        <input asp-for="Address" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Government ID</label>
+        <input asp-for="GovernmentId" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-primary">Save Citizen</button>
+</form>
+
+<hr />
+<h2>Add Criminal Record</h2>
+
+<form asp-controller="Records" asp-action="AddCriminal" method="post">
+    <div class="form-group">
+        <label>Name</label>
+        <input name="Name" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Crime</label>
+        <input name="Crime" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Date Arrested</label>
+        <input name="DateArrested" type="date" class="form-control" />
+    </div>
+    <div class="form-group">
+        <label>Government ID</label>
+        <input name="GovernmentId" class="form-control" />
+    </div>
+    <button type="submit" class="btn btn-danger">Save Criminal</button>
+</form>
