@@ -17,19 +17,23 @@
     <form method="post" asp-page-handler="AddCitizen">
         <div>
             <label>Name</label>
-            <input type="text" name="Citizen.Name" required />
+            <input asp-for="Citizen.Name" />
+            <span asp-validation-for="Citizen.Name" class="text-danger"></span>
         </div>
         <div>
             <label>Age</label>
-            <input type="number" name="Citizen.Age" required />
+            <input asp-for="Citizen.Age" />
+            <span asp-validation-for="Citizen.Age" class="text-danger"></span>
         </div>
-        <div style="grid-column: span 2;">
+        <div>
             <label>Address</label>
-            <input type="text" name="Citizen.Address" required />
+            <input asp-for="Citizen.Address" />
+            <span asp-validation-for="Citizen.Address" class="text-danger"></span>
         </div>
-        <div style="grid-column: span 2;">
+        <div>
             <label>Government ID</label>
-            <input type="text" name="Citizen.GovernmentId" required />
+            <input asp-for="Citizen.GovernmentId" />
+            <span asp-validation-for="Citizen.GovernmentId" class="text-danger"></span>
         </div>
         <button type="submit">Add Citizen</button>
     </form>
@@ -64,22 +68,28 @@
     <form method="post" asp-page-handler="AddCriminal">
         <div>
             <label>Name</label>
-            <input type="text" name="Criminal.Name" required />
+            <input asp-for="Criminal.Name" name="Criminal.Name" />
+            <span asp-validation-for="Criminal.Name" class="text-danger"></span>
         </div>
         <div>
             <label>Crime</label>
-            <input type="text" name="Criminal.Crime" required />
+            <input asp-for="Criminal.Crime" name="Criminal.Crime" />
+            <span asp-validation-for="Criminal.Crime" class="text-danger"></span>
         </div>
         <div>
             <label>Date Arrested</label>
-            <input type="date" name="Criminal.DateArrested" required />
+            <input asp-for="Criminal.DateArrested" name="Criminal.DateArrested" />
+            <span asp-validation-for="Criminal.DateArrested" class="text-danger"></span>
         </div>
         <div>
             <label>Government ID</label>
-            <input type="text" name="Criminal.GovernmentId" required />
+            <input asp-for="Criminal.GovernmentId" name="Criminal.GovernmentId" />
+            <span asp-validation-for="Criminal.GovernmentId" class="text-danger"></span>
         </div>
         <button type="submit" class="criminal">Add Criminal</button>
     </form>
+
+
 
     <h5>Criminal Records</h5>
     <table>
