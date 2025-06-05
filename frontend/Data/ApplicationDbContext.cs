@@ -10,6 +10,5 @@ namespace Frontend.Data
 
         public DbSet<Citizen> Citizens { get; set; }
         public DbSet<Criminal> Criminals { get; set; }
-        public DbSet<Report> Reports { get; set; }
     }
 }

@@ -1,66 +1,45 @@
 ﻿@page
 @model IndexModel
 @{
-    ViewData["Title"] = "Police RMS Dashboard";
+    ViewData["Title"] = "RMS Dashboard";
 }
 
+<!-- Bootstrap 5 -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+<style>
+    .dashboard-title {
+        font-size: 2.2rem;
+        font-weight: 600;
+        margin-bottom: 1rem;
+    }
+
+    .card:hover {
+        transform: translateY(-5px);
+        transition: transform 0.2s ease-in-out;
+    }
+
+    .card-title i {
+        margin-right: 10px;
+    }
+</style>
 
 <div class="container mt-5">
-    <h2 class="text-center mb-4">🚔 Police RMS Dashboard</h2>
+    <h2 class="text-center dashboard-title">🚔 Police RMS Dashboard</h2>
+    <p class="text-center text-muted mb-5">Manage and access citizen and criminal records efficiently.</p>
 
-    <div class="row g-4">
-        <!-- Records -->
-        <div class="col-md-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title">📇 Records</h5>
-                    <p class="card-text">Manage citizen and criminal records. Add or fetch using voice.</p>
-                    <a href="/Records" class="btn btn-primary">Go to Records</a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Reports -->
-        <div class="col-md-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title">📝 Reports</h5>
-                    <p class="card-text">Submit incident reports manually or using guided voice input.</p>
-                    <a href="/Report" class="btn btn-primary">Go to Reports</a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Shift Summary -->
-        <div class="col-md-4">
-            <div class="card h-100 shadow-sm">
-                <div class="card-body">
-                    <h5 class="card-title">📋 Shift Summary</h5>
-                    <p class="card-text">Use voice dictation to summarize your shift using AI.</p>
-                    <a href="/Summary" class="btn btn-primary">Summarize Shift</a>
-                </div>
-            </div>
-        </div>
-
-        <!-- Evidence Summary (Coming Soon) -->
-        <div class="col-md-6">
-            <div class="card h-100 shadow-sm border-warning">
-                <div class="card-body">
-                    <h5 class="card-title">🖼️ Evidence Summary <span class="badge bg-warning text-dark">Coming Soon</span></h5>
-                    <p class="card-text">Upload image evidence and get a caption and summary using AI.</p>
-                    <a href="/Evidence" class="btn btn-outline-secondary disabled">Coming Soon</a>
-                </div>
-            </div>
-        </div>
-
-        <!-- AI Assistant Chatbot (Coming Soon) -->
-        <div class="col-md-6">
-            <div class="card h-100 shadow-sm border-info">
-                <div class="card-body">
-                    <h5 class="card-title">🤖 AI Assistant <span class="badge bg-info text-dark">Coming Soon</span></h5>
-                    <p class="card-text">Talk or type to a smart assistant for help with tasks or data.</p>
-                    <a href="/ChatBot" class="btn btn-outline-secondary disabled">Coming Soon</a>
+    <div class="row justify-content-center">
+        <div class="col-md-6 col-lg-4">
+            <div class="card shadow-sm border-0">
+                <div class="card-body text-center">
+                    <h5 class="card-title">
+                        <i class="fas fa-folder-open text-primary"></i> Records
+                    </h5>
+                    <p class="card-text text-muted">
+                        Add and view citizen or criminal records. Use typed commands to query records.
+                    </p>
+                    <a href="/Records" class="btn btn-primary w-100">Go to Records</a>
                 </div>
             </div>
         </div>
