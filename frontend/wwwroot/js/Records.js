@@ -72,6 +72,68 @@ function searchCriminal() {
         .catch(err => console.error("❌ Criminal search failed:", err));
 }
 
+// === VOICE COMMAND HANDLING ===
+
+const recordBtn = document.getElementById("recordBtn");
+let recognition;
+
+if (!('webkitSpeechRecognition' in window)) {
+    if (recordBtn) {
+        recordBtn.disabled = true;
+        recordBtn.textContent = "🎤 Not Supported";
+    }
+} else {
+    recognition = new webkitSpeechRecognition();
+    recognition.continuous = false;
+    recognition.lang = 'en-US';
+
+    recognition.onstart = () => {
+        recordBtn.textContent = "🎤 Listening...";
+    };
+
+    recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript;
+        document.getElementById("commandInput").value = transcript;
+        sendCommand(); // Call the function to send to Flask
+    };
+
+    recognition.onerror = (event) => {
+        console.error("Speech recognition error:", event.error);
+        recordBtn.textContent = "🎤 Start Recording";
+    };
+
+    recognition.onend = () => {
+        recordBtn.textContent = "🎤 Start Recording";
+    };
+
+    recordBtn.onclick = () => {
+        recognition.start();
+    };
+}
+
+function sendCommand() {
+    const command = document.getElementById("commandInput").value.trim();
+    if (!command) {
+        alert("Please enter a command");
+        return;
+    }
+
+    fetch('http://localhost:5000/api/command', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ command })
+    })
+        .then(res => res.json())
+        .then(data => {
+            console.log("✅ Flask says:", data.message);
+            document.getElementById("status").textContent = data.message;
+        })
+        .catch(err => {
+            console.error("❌ Command failed:", err);
+            document.getElementById("status").textContent = "Error sending command.";
+        });
+}
+
 
 // Run on page load: check query param ?tab=...
 window.onload = function () {

@@ -97,3 +97,8 @@ input[type="text"] {
     border: 1px solid #ccc;
     border-radius: 4px;
 }
+recordBtn {
+    position: absolute;
+    right: 10px;
+    top: 10px;
+}
