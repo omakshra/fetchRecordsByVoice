@@ -37,6 +37,8 @@
         </div>
         <button type="submit">Add Citizen</button>
     </form>
+    <h5>Search Citizens</h5>
+    <input type="text" id="citizenSearchInput" placeholder="Search by Name or Gov. ID" onkeyup="searchCitizen()" />
 
     <h5>Citizen Records</h5>
     <table>
@@ -48,7 +50,7 @@
                 <th>Gov. ID</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="citizenTableBody">
             @foreach (var c in Model.Citizens)
             {
             <tr>
@@ -89,7 +91,8 @@
         <button type="submit" class="criminal">Add Criminal</button>
     </form>
 
-
+    <h5>Search Criminals</h5>
+    <input type="text" id="criminalSearchInput" placeholder="Search by Name or Gov. ID" onkeyup="searchCriminal()" />
 
     <h5>Criminal Records</h5>
     <table>
@@ -101,7 +104,7 @@
                 <th>Gov. ID</th>
             </tr>
         </thead>
-        <tbody>
+        <tbody id="criminalTableBody">
             @foreach (var c in Model.Criminals)
             {
             <tr>
