@@ -5,7 +5,13 @@
 }
 <link rel="stylesheet" href="~/css/Records.css" />
 <h2>📇 Records Management</h2>
-
+<div class="center-container">
+    <input type="text" id="commandInput" placeholder="Type your command (or use voice)" />
+    <br />
+    <button onclick="sendCommand()">Send Command</button>
+    <button id="recordBtn">🎤 Start Recording</button>
+    <div id="status"></div>
+</div>
 <div class="tabs">
     <div class="tab active" onclick="switchSection('citizen')">Citizen</div>
     <div class="tab" onclick="switchSection('criminal')">Criminal</div>
@@ -39,12 +45,6 @@
     </form>
     <h5>Search Citizens</h5>
     <input type="text" id="citizenSearchInput" placeholder="Search by Name or Gov. ID" onkeyup="searchCitizen()" />
-    <input type="text" id="commandInput" placeholder="Type your command (or use voice)" />
-    <button onclick="sendCommand()">Send Command</button>
-
-    <button id="recordBtn">🎤 Start Recording</button>
-
-    <div id="status"></div>
 
     <h5>Citizen Records</h5>
     <table>
