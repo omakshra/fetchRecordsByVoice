@@ -66,3 +66,5 @@ Officer speaks citizen/criminal name
 Voice input is confirmed
 Backend returns and displays the matching record
 
+RASA + spaCy, EntityRuler, regex
+
