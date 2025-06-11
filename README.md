@@ -88,3 +88,8 @@ Split out your NLP functions (extract_module, extract_intent, etc.) and write un
 🧪 Unit test examples?
 
 🔁 Schema sync code with cache support?
+
+{ "entities": { "address": [ "address", "cdcsd" ] }, "intent": "search", "message": "Command processed: 'list all residents address cdcsd'", "module": "citizens" }
+{ "entities": { "name": [ "name" ] }, "intent": "search", "message": "Command processed: 'get all crimnals having name as jacob'", "module": "criminals" }
+{ "entities": { "age": [ "age", "20" ] }, "intent": "search", "message": "Command processed: 'get all citizens whose age is 20'", "module": "citizens" }
+{ "entities": { "age": [ "age" ], "cardinal": [ "45" ] }, "intent": "search", "message": "Command processed: 'get all citizens whose age is 45'", "module": "citizens" }
