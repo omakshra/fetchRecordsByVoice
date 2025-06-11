@@ -126,7 +126,7 @@ function sendCommand() {
         .then(res => res.json())
         .then(data => {
             console.log("✅ Flask says:", data.message);
-            document.getElementById("status").textContent = data.message;
+            document.getElementById("status").textContent = JSON.stringify(data, null, 2);
         })
         .catch(err => {
             console.error("❌ Command failed:", err);
