@@ -52,19 +52,39 @@ Key Features
   - 'Find record for John Smith'
   - 'Search case ID 24589'
   
-  
-Module 1: Records Management
-Page: Records.cshtml
-Contains two sections:
-🧾 Add Record Forms
-Citizen Record Form: Name, age, address, ID
-Criminal Record Form: Name, crime, date arrested, ID
-Submit to Flask to insert into database
-🎤 Voice-Based Record Fetch
-Mic button
-Officer speaks citizen/criminal name
-Voice input is confirmed
-Backend returns and displays the matching record
-
 RASA + spaCy, EntityRuler, regex
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+IMPROVEMENTS-
+1. Decouple Schema Extraction
+schema_cache/
+├── tables.json
+├── entity_patterns.json
 
+2. Use Environment Config for DB Connection
+from dotenv import load_dotenv
+load_dotenv()
+DATABASE_URL = os.getenv("DB_URL")
+
+3.Add Logging
+import logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+logger.info(f"Loaded {len(patterns)} entity patterns.")
+
+4. Fallback to spaCy's Default NER
+You’ve used EntityRuler only, but if a name like "Ram" isn’t in DB samples, fallback to spaCy's model NER
+
+5. Centralize and Expand module_synonyms.json
+This is a great idea. In production:
+Move it to a shared config folder
+Regularly expand it based on user input and logs
+Add a script or interface for admins to update synonyms easily
+
+6. Unit Test Your NLP Logic
+Split out your NLP functions (extract_module, extract_intent, etc.) and write unit tests for them. 
+
+📂 A sample folder structure for a production version?
+
+🧪 Unit test examples?
+
+🔁 Schema sync code with cache support?
