@@ -94,23 +94,24 @@ namespace Frontend.Pages
             }
             Console.WriteLine("❌ Invalid model");
         }
-        public async Task<JsonResult> OnGetSearchCitizensAsync(string query)
+        public async Task<JsonResult> OnGetSearchCitizensAsync(
+            string name = null,
+            string governmentId = null,
+            int? age = null,
+            string address = null)
         {
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                // Return all citizens if query is empty
-                var allCitizens = await _context.Citizens.ToListAsync();
-                return new JsonResult(allCitizens);
-            }
-            else
-            {
-                var results = await _context.Citizens
-                    .Where(c => c.Name.Contains(query) || c.GovernmentId.Contains(query))
-                    .ToListAsync();
-                return new JsonResult(results);
-            }
+            var query = _context.Citizens.AsQueryable();
+            if (!string.IsNullOrEmpty(name))
+                query = query.Where(c => c.Name.Contains(name));
+            if (!string.IsNullOrEmpty(governmentId))     
+                query = query.Where(c => c.GovernmentId.Contains(governmentId));
+            if (age.HasValue)
+                query = query.Where(c => c.Age == age.Value);
+            if (!string.IsNullOrEmpty(address))
+                query = query.Where(c => c.Address.Contains(address));
+            var results = await query.ToListAsync();
+            return new JsonResult(results);
         }
-
         public async Task<JsonResult> OnGetSearchCriminalsAsync(string query)
         {
             if (string.IsNullOrWhiteSpace(query))

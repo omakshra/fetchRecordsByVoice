@@ -1,5 +1,5 @@
 {
-	"criminals": [ "criminal", "suspect", "offender", "felon" ],
+	"criminals": [ "criminal", "suspect", "offender", "felon","suspects" ],
 	"citizens": [ "citizen", "person", "resident", "individual" ],
 	"fire": [ "fire", "fire incident", "blaze" ],
 	"traffic": [ "traffic", "accident", "collision", "crash" ]
