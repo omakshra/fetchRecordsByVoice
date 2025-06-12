@@ -83,13 +83,21 @@ Add a script or interface for admins to update synonyms easily
 6. Unit Test Your NLP Logic
 Split out your NLP functions (extract_module, extract_intent, etc.) and write unit tests for them. 
 
+7. assuming DB table names = modules
+Create a schema_config.json. Use this for both synonym resolution and query construction — more stable than relying on introspection.
+
+8. No Separation Between Intent Processing and Query Building
+Split it into:
+NLP Layer: Extracts intent, entities, module.
+Query Builder Layer: Builds real queries using schema_config + business logic.
+
+
 📂 A sample folder structure for a production version?
 
 🧪 Unit test examples?
 
 🔁 Schema sync code with cache support?
 
-{ "entities": { "address": [ "address", "cdcsd" ] }, "intent": "search", "message": "Command processed: 'list all residents address cdcsd'", "module": "citizens" }
-{ "entities": { "name": [ "name" ] }, "intent": "search", "message": "Command processed: 'get all crimnals having name as jacob'", "module": "criminals" }
-{ "entities": { "age": [ "age", "20" ] }, "intent": "search", "message": "Command processed: 'get all citizens whose age is 20'", "module": "citizens" }
-{ "entities": { "age": [ "age" ], "cardinal": [ "45" ] }, "intent": "search", "message": "Command processed: 'get all citizens whose age is 45'", "module": "citizens" }
+{ "entities": { "person": [ "jacob" ] }, "intent": "search", "message": "Command processed: 'get criminal records for name jacob'", "module": "criminals" }
+{ "entities": {}, "intent": "search", "message": "Command processed: 'get all criminal records for having age as 40'", "module": "criminals" }
+{ "entities": { "name": "Show", "organization": "JohnDoe" }, "intent": "search", "message": "Command processed: 'Show all citizen records for JohnDoe'", "module": "citizens" }
