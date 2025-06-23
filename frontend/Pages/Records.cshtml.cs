@@ -94,39 +94,46 @@ namespace Frontend.Pages
             }
             Console.WriteLine("❌ Invalid model");
         }
-        public async Task<JsonResult> OnGetSearchCitizensAsync(
-            string name = null,
-            string governmentId = null,
-            int? age = null,
-            string address = null)
+        public async Task<JsonResult> OnGetSearchCitizensAsync(string query)
         {
-            var query = _context.Citizens.AsQueryable();
-            if (!string.IsNullOrEmpty(name))
-                query = query.Where(c => c.Name.Contains(name));
-            if (!string.IsNullOrEmpty(governmentId))     
-                query = query.Where(c => c.GovernmentId.Contains(governmentId));
-            if (age.HasValue)
-                query = query.Where(c => c.Age == age.Value);
-            if (!string.IsNullOrEmpty(address))
-                query = query.Where(c => c.Address.Contains(address));
-            var results = await query.ToListAsync();
+            if (string.IsNullOrWhiteSpace(query))
+            {
+                var all = await _context.Citizens.ToListAsync();
+                return new JsonResult(all);
+            }
+
+            var results = await _context.Citizens
+                .Where(c =>
+                    EF.Functions.Like(c.Name, $"%{query}%") ||
+                    EF.Functions.Like(c.GovernmentId, $"%{query}%") ||
+                    EF.Functions.Like(c.Address, $"%{query}%") ||
+                    c.Age.ToString() == query)
+                .ToListAsync();
+
             return new JsonResult(results);
         }
+
         public async Task<JsonResult> OnGetSearchCriminalsAsync(string query)
         {
             if (string.IsNullOrWhiteSpace(query))
             {
-                var allCriminals = await _context.Criminals.ToListAsync();
-                return new JsonResult(allCriminals);
+                var all = await _context.Criminals.ToListAsync();
+                return new JsonResult(all);
             }
-            else
-            {
-                var results = await _context.Criminals
-                    .Where(c => c.Name.Contains(query) || c.GovernmentId.Contains(query))
-                    .ToListAsync();
-                return new JsonResult(results);
-            }
+
+            var loweredQuery = query.ToLower();
+
+            var results = await _context.Criminals
+                .Where(c =>
+                    c.Name.ToLower().Contains(loweredQuery) ||
+                    c.GovernmentId.ToLower().Contains(loweredQuery) ||
+                    c.Crime.ToLower().Contains(loweredQuery) ||
+                    c.DateArrested.ToString().Contains(loweredQuery))
+                .ToListAsync();
+
+            return new JsonResult(results);
         }
+
 
 
     }
