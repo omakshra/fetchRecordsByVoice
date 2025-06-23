@@ -1,27 +1,56 @@
-﻿function switchSection(targetId) {
-    const sections = document.querySelectorAll('.section');
-    const tabs = document.querySelectorAll('.tab');
-
-    sections.forEach(s => s.classList.remove('active'));
-    tabs.forEach(t => t.classList.remove('active'));
-
-    document.getElementById(targetId).classList.add('active');
-    event.target.classList.add('active');
-}
-function switchSection(section) {
+﻿function switchSection(sectionId) {
     document.querySelectorAll('.tab, .section').forEach(el => el.classList.remove('active'));
 
-    const tab = document.querySelector(`.tab[onclick*="${section}"]`);
-    const content = document.getElementById(section);
+    const tab = document.querySelector(`.tab[onclick*="${sectionId}"]`);
+    const content = document.getElementById(sectionId);
 
     if (tab) tab.classList.add('active');
-    else console.warn(`No tab found for: ${section}`);
+    else console.warn(`No tab found for: ${sectionId}`);
 
     if (content) content.classList.add('active');
-    else console.warn(`No section found with id="${section}"`);
+    else console.warn(`No section found with id="${sectionId}"`);
 }
 
 
+function renderTableRows(data, tbody, fields, highlightTerm = "") {
+    tbody.innerHTML = "";
+
+    if (!data || data.length === 0) {
+        tbody.innerHTML = `<tr><td colspan='${fields.length}'>No matching records found</td></tr>`;
+        return;
+    }
+
+    const highlightRegex = highlightTerm
+        ? new RegExp(`(${escapeRegExp(highlightTerm)})`, "gi")
+        : null;
+
+    let firstRow;
+
+    data.forEach(item => {
+        const row = tbody.insertRow();
+
+        fields.forEach(field => {
+            const value = item[field] || item[field.toLowerCase()] || "";
+            const cell = row.insertCell();
+            if (highlightRegex) {
+                cell.innerHTML = String(value).replace(highlightRegex, "<mark>$1</mark>");
+            } else {
+                cell.textContent = value;
+            }
+        });
+
+        if (!firstRow) firstRow = row;
+    });
+
+    if (firstRow) {
+        firstRow.classList.add("auto-highlight");
+        firstRow.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+}
+
+function escapeRegExp(string) {
+    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 // Update searchCitizen to accept filters
 function searchCitizen(filters = {}) {
     // Build query string from filters object or fallback to input value
@@ -38,27 +67,13 @@ function searchCitizen(filters = {}) {
         .then(res => res.json())
         .then(data => {
             const tbody = document.getElementById("citizenTableBody");
-            tbody.innerHTML = "";
-
-            if (!data || data.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='4'>No records found</td></tr>";
-                return;
-            }
-
-            data.forEach(c => {
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${c.name || c.Name}</td>
-                        <td>${c.age || c.Age}</td>
-                        <td>${c.address || c.Address}</td>
-                        <td>${c.governmentId || c.GovernmentId}</td>
-                    </tr>`;
-            });
+            const fields = ['name', 'age', 'address', 'governmentId'];
+            renderTableRows(data, tbody, fields, query);
         })
         .catch(err => console.error("❌ Citizen search failed:", err));
 }
 
-// Same for searchCriminal
+// Fixed searchCriminal
 function searchCriminal(filters = {}) {
     const query = filters.query || document.getElementById("criminalSearchInput").value.trim();
 
@@ -72,23 +87,15 @@ function searchCriminal(filters = {}) {
         .then(response => response.json())
         .then(data => {
             const tbody = document.getElementById("criminalTableBody");
-            tbody.innerHTML = "";
-
-            if (data.length === 0) {
-                tbody.innerHTML = "<tr><td colspan='4'>No matching criminals found</td></tr>";
-                return;
-            }
 
             data.forEach(c => {
-                const formattedDate = c.dateArrested ? new Date(c.dateArrested).toLocaleDateString() : '';
-                tbody.innerHTML += `
-                    <tr>
-                        <td>${c.name || c.Name}</td>
-                        <td>${c.crime || c.Crime}</td>
-                        <td>${formattedDate}</td>
-                        <td>${c.governmentId || c.GovernmentId}</td>
-                    </tr>`;
+                if (c.dateArrested) {
+                    c.dateArrested = new Date(c.dateArrested).toLocaleDateString();
+                }
             });
+
+            const fields = ['name', 'crime', 'dateArrested', 'governmentId'];
+            renderTableRows(data, tbody, fields, query);
         })
         .catch(err => console.error("❌ Criminal search failed:", err));
 }
@@ -111,7 +118,6 @@ function sendCommand() {
             console.log("✅ Flask says:", data.message);
             document.getElementById("status").textContent = JSON.stringify(data, null, 2);
 
-            // Map plural to singular section IDs
             const moduleMap = {
                 "citizens": "citizen",
                 "criminals": "criminal"
@@ -120,32 +126,31 @@ function sendCommand() {
             const module = data.module?.toLowerCase();
             const sectionId = moduleMap[module];
 
-            if (sectionId) {
-                switchSection(sectionId);
-
-                // Auto-fill search input and trigger search
-                // Auto-fill search input and trigger search
-                const entities = data.entities || {};
-                let queryParts = [];
-
-                if (entities.name) queryParts.push(entities.name);
-                if (entities.governmentid) queryParts.push(entities.governmentid);
-                if (entities.address) queryParts.push(entities.address);
-                if (entities.age) queryParts.push(entities.age);
-                if (entities.crime) queryParts.push(entities.crime);
-                if (entities.formattedDate) queryParts.push(entities.formattedDate);
-                let query = queryParts.join(" ");
-
-
-                if (sectionId === "citizen") {
-                    document.getElementById("citizenSearchInput").value = query;
-                    searchCitizen();
-                } else if (sectionId === "criminal") {
-                    document.getElementById("criminalSearchInput").value = query;
-                    searchCriminal();
-                }
-            } else {
+            if (!sectionId) {
                 console.warn("❗ Unknown module:", module);
+                return;
+            }
+
+            switchSection(sectionId);
+
+            const entities = data.entities || {};
+            const filters = {};
+
+            // Copy relevant filters from entities with lowercase keys
+            for (const key in entities) {
+                filters[key.toLowerCase()] = entities[key];
+            }
+
+            // Compose a query string for highlighting, joining all entity values
+            filters.query = Object.values(filters).join(" ");
+
+            // Update input and trigger filtered search with filters
+            if (sectionId === "citizen") {
+                document.getElementById("citizenSearchInput").value = filters.query;
+                searchCitizen(filters);
+            } else if (sectionId === "criminal") {
+                document.getElementById("criminalSearchInput").value = filters.query;
+                searchCriminal(filters);
             }
         })
         .catch(err => {
@@ -153,7 +158,6 @@ function sendCommand() {
             document.getElementById("status").textContent = "Error sending command.";
         });
 }
-
 
 const recordBtn = document.getElementById("recordBtn");
 let recognition;
