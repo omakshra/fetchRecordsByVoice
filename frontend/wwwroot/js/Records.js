@@ -124,7 +124,7 @@ function sendCommand() {
             };
 
             const module = data.module?.toLowerCase();
-            const sectionId = moduleMap[module];
+            const sectionId = moduleMap[module] || 'citizen'; // fallback to citizen
 
             if (!sectionId) {
                 console.warn("❗ Unknown module:", module);
@@ -138,7 +138,9 @@ function sendCommand() {
 
             // Copy relevant filters from entities with lowercase keys
             for (const key in entities) {
-                filters[key.toLowerCase()] = entities[key];
+                filters[key.toLowerCase()] = Array.isArray(entities[key])
+                    ? entities[key].join(" ")
+                    : entities[key];
             }
 
             // Compose a query string for highlighting, joining all entity values

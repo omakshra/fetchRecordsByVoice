@@ -10,7 +10,8 @@ import threading
 import time
 import logging
 from spacy.pipeline import EntityRuler
-
+from spacy.matcher import PhraseMatcher
+from spacy.tokens import Span
 app = Flask(__name__)
 CORS(app)
 logging.basicConfig(level=logging.INFO)
@@ -42,14 +43,21 @@ nlp = load_spacy_model()
 # Label normalization
 ENTITY_LABEL_MAP = {
     "gpe": "location",
+    "location": "location",
+    "facility": "location",
+    "org": "location",  # <- for cases like "5th avenue"
+    "organization": "location",
     "person": "name",
-    "org": "organization",
+    "name": "name",
     "date": "date",
     "time": "time",
     "cardinal": "age",
     "phone": "phone_number",
-    "email": "email"
+    "email": "email",
+    "governmentid": "governmentid",
+    "govid": "governmentid"
 }
+
 # ---------------- PATTERN BUILDING -------------------
 def get_sample_values(table, column, limit=50):
     query = text(f"SELECT DISTINCT {column} FROM {table} WHERE {column} IS NOT NULL")
@@ -81,8 +89,10 @@ def add_generic_patterns():
     return [
         {"label": "PHONE", "pattern": [{"TEXT": {"REGEX": r"\d{3}-\d{3}-\d{4}"}}]},
         {"label": "EMAIL", "pattern": [{"TEXT": {"REGEX": r".+@.+\..+"}}]},
-        {"label": "DATE", "pattern": [{"TEXT": {"REGEX": r"\d{1,2}/\d{1,2}/\d{2,4}"}}]},
-        {"label": "NAME", "pattern": [{"TEXT": {"REGEX": r"^[A-Z][a-z]+$"}}]},
+        {"label": "DATE", "pattern": [{"TEXT": {"REGEX": r"\d{1,2}/\d{1,2}/\d{2,4}"}}, {"TEXT": {"REGEX": r"last week|today|yesterday|this month"}}]},
+        {"label": "GOVERNMENTID", "pattern": [{"TEXT": {"REGEX": r"CID\d{3,}"}}]},
+        {"label": "LOCATION", "pattern": [{"LOWER": {"REGEX": r"\d+(st|nd|rd|th)\s+(avenue|street|road|blvd|lane)"}}]},
+        {"label": "NAME", "pattern": [{"TEXT": {"REGEX": r"^[A-Z][a-z]+$"}}]},                 # Capitalized single word
     ]
 
 # Add patterns to NER (entity ruler) - keep overwrite_ents=False to keep SpaCy NER too
@@ -90,7 +100,6 @@ if "entity_ruler" in nlp.pipe_names:
     nlp.remove_pipe("entity_ruler")
 ruler = nlp.add_pipe("entity_ruler", before="ner", config={"overwrite_ents": False})
 ruler.add_patterns(refresh_cached_db_values() + add_generic_patterns())
-
 # -------------------- AUTO REFRESH THREAD --------------------
 def auto_refresh_cache(interval_minutes=10):
     while True:
@@ -115,29 +124,30 @@ def extract_intent(text):
 
 def extract_module(text, table_names):
     text = text.lower()
-    table_names_lower = [t.lower() for t in table_names]
     doc = nlp(text)
-    # Direct match
-    for table in table_names_lower:
-        if table in text:
-            return table
-    # Exact or fuzzy synonym match
-    for word in text.split():
+
+    # Direct DB table match
+    for table in table_names:
+        if table.lower() in text:
+            return table.lower()
+
+    # Synonym or fuzzy match
+    for token in doc:
+        word = token.text.lower()
         if word in synonym_to_module:
             return synonym_to_module[word]
-        matches = difflib.get_close_matches(word, synonym_to_module.keys(), n=1, cutoff=0.8)
+
+    # Fuzzy match with synonym keys
+    for token in doc:
+        matches = difflib.get_close_matches(token.text.lower(), synonym_to_module.keys(), n=1, cutoff=0.8)
         if matches:
             return synonym_to_module[matches[0]]
-    # Semantic similarity for module names
-    for table in table_names_lower:
-        table_doc = nlp(table)
-        sim_scores = [token.similarity(table_doc) for token in doc if token.has_vector and table_doc.has_vector]
-        if sim_scores and max(sim_scores) >= 0.7:
-            return table
-    # Fuzzy fallback
-    fuzzy_matches = difflib.get_close_matches(text, table_names_lower, n=1, cutoff=0.75)
-    if fuzzy_matches:
-        return fuzzy_matches[0]
+
+    # If still nothing, fallback to keyword-style guess (like 'fire', 'traffic')
+    for token in doc:
+        if token.pos_ == "NOUN":
+            return token.text.lower()
+
     return "general"
 
 def fix_gpe_to_person(ents):
@@ -150,7 +160,7 @@ def fix_gpe_to_person(ents):
 
     return fixed_ents
 
-def fuzzy_match_entity_to_db(entity_text, candidates, cutoff=0.7):
+def fuzzy_match_entity_to_db(entity_text, candidates, cutoff=0.6):
 
     if not candidates:
         return None
@@ -173,18 +183,31 @@ def fuzzy_match_entity_to_db(entity_text, candidates, cutoff=0.7):
 # -------------------- STRUCTURED QUERY --------------------
 def build_structured_query(command):
     doc = nlp(command)
-    # Merge full PERSON/NAME entities into one entry
+    new_ents, skip = [], False
+    ents = list(doc.ents)
+    for i, ent in enumerate(ents):
+        if skip:
+            skip = False
+            continue
+        if i + 1 < len(ents):
+            nxt = ents[i + 1]
+            if ent.label_ in ("PERSON", "NAME") and nxt.label_ in ("PERSON", "NAME") and nxt.start == ent.end:
+                merged = Span(doc, ent.start, nxt.end, label=ent.label_)
+                new_ents.append(merged)
+                skip = True
+                continue
+        new_ents.append(ent)
+    doc.ents = tuple(new_ents)
     full_names = [ent.text for ent in doc.ents if ent.label_ in ("PERSON", "NAME")]
-    entities = {}
-    if full_names:
-        entities["name"] = full_names[0] if len(full_names) == 1 else full_names
     fixed_entities = fix_gpe_to_person(doc.ents)
     table_names = inspector.get_table_names()
     module = None
+
     for text, label in fixed_entities:
         if label.upper() == "MODULE" and text.lower() in table_names:
             module = text.lower()
             break
+
     if not module:
         module = extract_module(command, table_names)
 
@@ -194,17 +217,28 @@ def build_structured_query(command):
             module_db_values.extend(col_samples)
 
     entities = {}
+    unmatched_entities = []
+
     for ent_text, ent_label in fixed_entities:
         raw_label = ent_label.lower()
         if raw_label == "module":
             continue
 
         norm_label = ENTITY_LABEL_MAP.get(raw_label, raw_label)
-        if norm_label not in ['date', 'time', 'phone_number', 'email']:
+
+        # Use full name if available
+        original_text = ent_text
+        matched_value = None
+
+        if norm_label not in ['date', 'time', 'phone_number', 'email','governmentid']:
             matched_value = fuzzy_match_entity_to_db(ent_text, module_db_values)
             if matched_value:
                 ent_text = matched_value
+            else:
+                unmatched_entities.append((norm_label, original_text))
+                ent_text = original_text  # Keep original value anyway
 
+        # Store the entity
         if norm_label in entities:
             if isinstance(entities[norm_label], list):
                 if ent_text not in entities[norm_label]:
@@ -215,14 +249,18 @@ def build_structured_query(command):
         else:
             entities[norm_label] = ent_text
 
-    intent = extract_intent(command)
-    logging.info(f"Extracted intent: {intent}, module: {module}, entities: {entities}")
+    # Add full names explicitly if not picked up
+    if full_names and 'name' not in entities:
+        entities['name'] = full_names[0] if len(full_names) == 1 else full_names
+    print(f"[Unmatched Entities] {unmatched_entities}")
+
     return {
         "message": f"Command processed: '{command}'",
-        "intent": intent,
+        "intent": extract_intent(command),
         "module": module,
-        "entities": entities
+        "entities": entities,
     }
+
 # -------------------- ROUTES --------------------
 @app.route('/api/command', methods=['POST'])
 def handle_command():
