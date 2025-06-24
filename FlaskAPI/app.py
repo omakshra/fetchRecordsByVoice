@@ -81,9 +81,23 @@ def refresh_cached_db_values():
 
             for val in samples:
                 if val and len(str(val)) > 1:
+                    # Add generic column value patterns
                     patterns.append({"label": col['name'].upper(), "pattern": val.lower()})
 
+    # Add name patterns for citizens or other tables if needed
+    patterns += get_name_patterns()
+
     return patterns
+
+def get_name_patterns():
+    name_patterns = []
+    # Example: assuming 'citizens' table has a 'name' column
+    if 'citizens' in cached_db_values:
+        for name in cached_db_values['citizens'].get('name', []):
+            if name and len(name.strip()) > 1:
+                # Add pattern for the full name in lowercase
+                name_patterns.append({"label": "PERSON", "pattern": name.lower()})
+    return name_patterns
 
 def add_generic_patterns():
     return [
@@ -157,8 +171,8 @@ def fix_gpe_to_person(ents):
             fixed_ents.append((ent.text, "PERSON"))
         else:
             fixed_ents.append((ent.text, ent.label_))
-
     return fixed_ents
+
 
 def fuzzy_match_entity_to_db(entity_text, candidates, cutoff=0.6):
 
@@ -183,6 +197,8 @@ def fuzzy_match_entity_to_db(entity_text, candidates, cutoff=0.6):
 # -------------------- STRUCTURED QUERY --------------------
 def build_structured_query(command):
     doc = nlp(command)
+
+    # Merge adjacent person/name tokens (e.g., "Jon De")
     new_ents, skip = [], False
     ents = list(doc.ents)
     for i, ent in enumerate(ents):
@@ -198,47 +214,18 @@ def build_structured_query(command):
                 continue
         new_ents.append(ent)
     doc.ents = tuple(new_ents)
-    full_names = [ent.text for ent in doc.ents if ent.label_ in ("PERSON", "NAME")]
+
+    # Fix GPE issues and normalize labels
     fixed_entities = fix_gpe_to_person(doc.ents)
     table_names = inspector.get_table_names()
-    module = None
-
-    for text, label in fixed_entities:
-        if label.upper() == "MODULE" and text.lower() in table_names:
-            module = text.lower()
-            break
-
-    if not module:
-        module = extract_module(command, table_names)
-
-    module_db_values = []
-    if module in cached_db_values:
-        for col_samples in cached_db_values[module].values():
-            module_db_values.extend(col_samples)
-
+    module = extract_module(command, table_names)
     entities = {}
     unmatched_entities = []
 
     for ent_text, ent_label in fixed_entities:
-        raw_label = ent_label.lower()
-        if raw_label == "module":
+        norm_label = ENTITY_LABEL_MAP.get(ent_label.lower(), ent_label.lower())
+        if norm_label == "module":
             continue
-
-        norm_label = ENTITY_LABEL_MAP.get(raw_label, raw_label)
-
-        # Use full name if available
-        original_text = ent_text
-        matched_value = None
-
-        if norm_label not in ['date', 'time', 'phone_number', 'email','governmentid']:
-            matched_value = fuzzy_match_entity_to_db(ent_text, module_db_values)
-            if matched_value:
-                ent_text = matched_value
-            else:
-                unmatched_entities.append((norm_label, original_text))
-                ent_text = original_text  # Keep original value anyway
-
-        # Store the entity
         if norm_label in entities:
             if isinstance(entities[norm_label], list):
                 if ent_text not in entities[norm_label]:
@@ -249,16 +236,11 @@ def build_structured_query(command):
         else:
             entities[norm_label] = ent_text
 
-    # Add full names explicitly if not picked up
-    if full_names and 'name' not in entities:
-        entities['name'] = full_names[0] if len(full_names) == 1 else full_names
-    print(f"[Unmatched Entities] {unmatched_entities}")
-
     return {
         "message": f"Command processed: '{command}'",
         "intent": extract_intent(command),
         "module": module,
-        "entities": entities,
+        "entities": entities
     }
 
 # -------------------- ROUTES --------------------
