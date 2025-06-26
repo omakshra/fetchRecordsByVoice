@@ -42,3 +42,6 @@ SQLAlchemy==2.0.30
 pyodbc==5.1.0
 # Optional for development and testing
 requests==2.32.3
+rapidfuzz
+jellyfish
+usaddress

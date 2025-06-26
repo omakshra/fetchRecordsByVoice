@@ -5,12 +5,13 @@ import spacy
 import difflib
 import json
 import os
-import requests 
 import threading
 import time
 import logging
-from spacy.pipeline import EntityRuler
-from spacy.matcher import PhraseMatcher
+import rapidfuzz
+from rapidfuzz import process, fuzz
+import jellyfish
+import usaddress
 from spacy.tokens import Span
 app = Flask(__name__)
 CORS(app)
@@ -42,11 +43,11 @@ nlp = load_spacy_model()
 
 # Label normalization
 ENTITY_LABEL_MAP = {
-    "gpe": "location",
-    "location": "location",
-    "facility": "location",
-    "org": "location",  # <- for cases like "5th avenue"
-    "organization": "location",
+    "gpe": "address",
+    "location": "address",
+    "facility": "address",
+    "org": "location",  
+    "organization": "address",
     "person": "name",
     "name": "name",
     "date": "date",
@@ -65,37 +66,59 @@ def get_sample_values(table, column, limit=50):
         result = conn.execute(query).fetchmany(limit)
     return [str(row[0]) for row in result if row[0]]
 
+def normalize_address(addr):
+    # Lowercase, remove commas, normalize spaces
+    return " ".join(addr.lower().replace(",", " ").split())
+
+def normalize_us_address(addr):
+    try:
+        parsed = usaddress.tag(addr)[0]
+        parts = [v.lower() for k, v in parsed.items()]
+        return " ".join(parts)
+    except usaddress.RepeatedLabelError:
+        return addr.lower()
+
 def refresh_cached_db_values():
     global cached_db_values
     cached_db_values = {}
     patterns = []
 
     for table in inspector.get_table_names():
-        cached_db_values[table] = {}
-        patterns.append({"label": "MODULE", "pattern": table.lower()})
+        table_lower = table.lower()
+        cached_db_values[table_lower] = {}
+        patterns.append({"label": "MODULE", "pattern": table_lower})
 
         for col in inspector.get_columns(table):
-            col_name = col['name'].lower()
+            col_name_lower = col['name'].lower()
             samples = get_sample_values(table, col['name'])
-            cached_db_values[table][col_name] = samples
+            cached_db_values[table_lower][col_name_lower] = samples
 
             for val in samples:
                 if val and len(str(val)) > 1:
-                    # Add generic column value patterns
-                    patterns.append({"label": col['name'].upper(), "pattern": val.lower()})
+                    val_norm = normalize_address(str(val))
+                    # Add full normalized pattern
+                    patterns.append({"label": col['name'].upper(), "pattern": val_norm})
 
-    # Add name patterns for citizens or other tables if needed
+                    # If it's likely an address column, add a few partials
+                    if "address" in col_name_lower or "location" in col_name_lower:
+                        parts = val_norm.split()
+                        # Add only bigrams to avoid overloading patterns
+                        for i in range(len(parts) - 1):
+                            bigram = f"{parts[i]} {parts[i+1]}"
+                            patterns.append({"label": col['name'].upper(), "pattern": bigram})
+
+    # Keep name patterns generation unchanged
     patterns += get_name_patterns()
 
     return patterns
 
+
 def get_name_patterns():
     name_patterns = []
-    # Example: assuming 'citizens' table has a 'name' column
-    if 'citizens' in cached_db_values:
-        for name in cached_db_values['citizens'].get('name', []):
+    citizens_key = "citizens"
+    if citizens_key in cached_db_values:
+        for name in cached_db_values[citizens_key].get('name', []):
             if name and len(name.strip()) > 1:
-                # Add pattern for the full name in lowercase
                 name_patterns.append({"label": "PERSON", "pattern": name.lower()})
     return name_patterns
 
@@ -103,10 +126,10 @@ def add_generic_patterns():
     return [
         {"label": "PHONE", "pattern": [{"TEXT": {"REGEX": r"\d{3}-\d{3}-\d{4}"}}]},
         {"label": "EMAIL", "pattern": [{"TEXT": {"REGEX": r".+@.+\..+"}}]},
-        {"label": "DATE", "pattern": [{"TEXT": {"REGEX": r"\d{1,2}/\d{1,2}/\d{2,4}"}}, {"TEXT": {"REGEX": r"last week|today|yesterday|this month"}}]},
+        {"label": "DATE", "pattern": [{"TEXT": {"REGEX": r"\d{1,2}/\d{1,2}/\d{2,4}"}}, {"TEXT": {"REGEX": r"last week|today|yesterday|this month|this week"}}]},
         {"label": "GOVERNMENTID", "pattern": [{"TEXT": {"REGEX": r"CID\d{3,}"}}]},
         {"label": "LOCATION", "pattern": [{"LOWER": {"REGEX": r"\d+(st|nd|rd|th)\s+(avenue|street|road|blvd|lane)"}}]},
-        {"label": "NAME", "pattern": [{"TEXT": {"REGEX": r"^[A-Z][a-z]+$"}}]},                 # Capitalized single word
+        {"label": "NAME", "pattern": [{"TEXT": {"REGEX": r"^[A-Z][a-z]+$"}}]},             
     ]
 
 # Add patterns to NER (entity ruler) - keep overwrite_ents=False to keep SpaCy NER too
@@ -173,32 +196,73 @@ def fix_gpe_to_person(ents):
             fixed_ents.append((ent.text, ent.label_))
     return fixed_ents
 
+def clean_entity_text(text):
+    stop_words = {"for", "in", "with", "the", "a", "an", "of"}
+    tokens = text.lower().strip().split()
+    filtered_tokens = [t for t in tokens if t not in stop_words]
+    return " ".join(filtered_tokens).strip()
 
-def fuzzy_match_entity_to_db(entity_text, candidates, cutoff=0.6):
-
+def fuzzy_match_entity_to_db(entity_text, candidates, cutoff=60):
     if not candidates:
         return None
-    # Use difflib first for quick match
-    matches = difflib.get_close_matches(entity_text.lower(), [c.lower() for c in candidates], n=1, cutoff=cutoff)
-    if matches:
-        return matches[0]
-    # If no difflib match, fallback to SpaCy similarity
-    entity_doc = nlp(entity_text)
-    best_score = 0
-    best_match = None
-    for candidate in candidates:
-        candidate_doc = nlp(candidate)
-        if entity_doc.has_vector and candidate_doc.has_vector:
-            score = entity_doc.similarity(candidate_doc)
-            if score > best_score and score >= cutoff:
+
+    entity_text_lower = entity_text.lower().strip()
+    address_keywords = ["street", "st", "avenue", "ave", "road", "rd", "lane", "ln", "blvd", "boulevard"]
+    is_address = "," in entity_text_lower or any(word in entity_text_lower for word in address_keywords)
+
+    if is_address:
+        # Normalize address input and candidate values
+        entity_norm = normalize_us_address(entity_text)
+        candidates_norm = [normalize_us_address(c) for c in candidates]
+
+        # Try token_set_ratio with normalized values
+        match = process.extractOne(entity_norm, candidates_norm, scorer=fuzz.token_set_ratio, score_cutoff=cutoff)
+        if match:
+            idx = candidates_norm.index(match[0])
+            return candidates[idx]
+
+        # Fallback: partial string match
+        for candidate, cand_norm in zip(candidates, candidates_norm):
+            if entity_norm in cand_norm or cand_norm in entity_norm:
+                return candidate
+
+        # Last fallback: Jaro-Winkler similarity
+        best_score = 0
+        best_match = None
+        for candidate, cand_norm in zip(candidates, candidates_norm):
+            score = jellyfish.jaro_winkler_similarity(entity_norm, cand_norm)
+            if score > best_score and score >= cutoff / 100:
                 best_score = score
                 best_match = candidate
-    return best_match
+        return best_match
+
+    else:
+        # Keep your name and other string logic intact
+        candidates_lower = [c.lower() for c in candidates]
+        match = process.extractOne(entity_text_lower, candidates_lower, scorer=fuzz.token_sort_ratio, score_cutoff=cutoff)
+        if match:
+            idx = candidates_lower.index(match[0])
+            return candidates[idx]
+
+        for candidate, cand_lower in zip(candidates, candidates_lower):
+            if entity_text_lower in cand_lower or cand_lower in entity_text_lower:
+                return candidate
+
+        # Optional final fallback for names: Jaro-Winkler
+        best_score = 0
+        best_match = None
+        for candidate in candidates:
+            score = jellyfish.jaro_winkler_similarity(entity_text_lower, candidate.lower())
+            if score > best_score and score >= cutoff / 100:
+                best_score = score
+                best_match = candidate
+        return best_match
+
 # -------------------- STRUCTURED QUERY --------------------
 def build_structured_query(command):
     doc = nlp(command)
 
-    # Merge adjacent person/name tokens (e.g., "Jon De")
+    # Merge adjacent PERSON/NAME tokens
     new_ents, skip = [], False
     ents = list(doc.ents)
     for i, ent in enumerate(ents):
@@ -208,34 +272,55 @@ def build_structured_query(command):
         if i + 1 < len(ents):
             nxt = ents[i + 1]
             if ent.label_ in ("PERSON", "NAME") and nxt.label_ in ("PERSON", "NAME") and nxt.start == ent.end:
-                merged = Span(doc, ent.start, nxt.end, label=ent.label_)
-                new_ents.append(merged)
+                new_ents.append(Span(doc, ent.start, nxt.end, label=ent.label_))
                 skip = True
                 continue
         new_ents.append(ent)
     doc.ents = tuple(new_ents)
 
-    # Fix GPE issues and normalize labels
     fixed_entities = fix_gpe_to_person(doc.ents)
-    table_names = inspector.get_table_names()
-    module = extract_module(command, table_names)
+    module = extract_module(command, inspector.get_table_names())
+    module = module.lower()
+    if module not in cached_db_values:
+        module = "citizens"
     entities = {}
-    unmatched_entities = []
+
+    print("\n🔎 Processing command:", command)
+    print("Detected module:", module)
+    print("Detected raw entities:", fixed_entities)
 
     for ent_text, ent_label in fixed_entities:
         norm_label = ENTITY_LABEL_MAP.get(ent_label.lower(), ent_label.lower())
         if norm_label == "module":
             continue
-        if norm_label in entities:
-            if isinstance(entities[norm_label], list):
-                if ent_text not in entities[norm_label]:
-                    entities[norm_label].append(ent_text)
-            else:
-                if entities[norm_label] != ent_text:
-                    entities[norm_label] = [entities[norm_label], ent_text]
-        else:
-            entities[norm_label] = ent_text
 
+        cleaned_text = clean_entity_text(ent_text)
+        corrected_value = cleaned_text
+
+        print(f"\n→ Entity: '{ent_text}' (cleaned: '{cleaned_text}') as '{norm_label}'")
+
+        if norm_label in ["name", "address"] and module in cached_db_values:
+            module_columns = cached_db_values[module]
+            print("Available columns:", list(module_columns.keys()))
+
+            for col_name, values in module_columns.items():
+                col_name_lower = col_name.lower()
+                if norm_label in col_name_lower or col_name_lower in norm_label:
+                    print(f"  Trying column '{col_name}', sample values:", values[:5])
+                    match = fuzzy_match_entity_to_db(cleaned_text, values, cutoff=60)
+                    print("    Fuzzy match result:", match)
+                    if match:
+                        corrected_value = match
+                        print(f"✅ Corrected to '{corrected_value}' from column '{col_name}'")
+                        break
+            else:
+                print(f"❌ No fuzzy match found for '{cleaned_text}' in columns for label '{norm_label}'")
+
+        # Add to entities
+        entities[norm_label] = corrected_value
+        print(f"Stored entity '{norm_label}': '{corrected_value}'")
+
+    print("🔁 Final entities:", entities)
     return {
         "message": f"Command processed: '{command}'",
         "intent": extract_intent(command),
@@ -243,7 +328,7 @@ def build_structured_query(command):
         "entities": entities
     }
 
-# -------------------- ROUTES --------------------
+ # -------------------- ROUTES --------------------
 @app.route('/api/command', methods=['POST'])
 def handle_command():
     data = request.get_json()
