@@ -98,6 +98,15 @@ Query Builder Layer: Builds real queries using schema_config + business logic.
 
 🔁 Schema sync code with cache support?
 
-{ "entities": { "person": [ "jacob" ] }, "intent": "search", "message": "Command processed: 'get criminal records for name jacob'", "module": "criminals" }
-{ "entities": {}, "intent": "search", "message": "Command processed: 'get all criminal records for having age as 40'", "module": "criminals" }
-{ "entities": { "name": "Show", "organization": "JohnDoe" }, "intent": "search", "message": "Command processed: 'Show all citizen records for JohnDoe'", "module": "citizens" }
+
+search for john
+find John Doe
+find Jhn De
+search for maple street
+Find citizen living at Maple street
+show all criminals charged with theft
+list people involved in murder in criminal records
+Get crimes by ddd in criminal record
+get all citizen records whose age is 20
+find citizen named John De who is 20 years old 
+{ "entities": { "governmentid": "223000", "name": "John Doe" }, "intent": "search", "message": "Command processed: 'find citizen record for John Doe with government id 223000'", "module": "citizens" }

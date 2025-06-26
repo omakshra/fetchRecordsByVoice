@@ -293,8 +293,10 @@ def build_structured_query(command):
         norm_label = ENTITY_LABEL_MAP.get(ent_label.lower(), ent_label.lower())
         if norm_label == "module":
             continue
-
         cleaned_text = clean_entity_text(ent_text)
+        if norm_label == "name" and any(addr_kw in cleaned_text for addr_kw in ["street", "avenue", "road", "lane", "ny", "st"]):
+            norm_label = "address"
+    
         corrected_value = cleaned_text
 
         print(f"\n→ Entity: '{ent_text}' (cleaned: '{cleaned_text}') as '{norm_label}'")

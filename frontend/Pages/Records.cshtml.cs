@@ -94,46 +94,98 @@ namespace Frontend.Pages
             }
             Console.WriteLine("❌ Invalid model");
         }
-        public async Task<JsonResult> OnGetSearchCitizensAsync(string query)
+        public async Task<JsonResult> OnGetSearchCitizensAsync(string? query, string? name, string? age, string? address, string? governmentId)
         {
-            if (string.IsNullOrWhiteSpace(query))
+            IQueryable<Citizen> queryable = _context.Citizens;
+
+            bool usedSpecificFilters = false;
+
+            if (!string.IsNullOrWhiteSpace(name))
             {
-                var all = await _context.Citizens.ToListAsync();
-                return new JsonResult(all);
+                queryable = queryable.Where(c => EF.Functions.Like(c.Name, $"%{name}%"));
+                usedSpecificFilters = true;
             }
 
-            var results = await _context.Citizens
-                .Where(c =>
+            if (!string.IsNullOrWhiteSpace(age) && int.TryParse(age, out int ageValue))
+            {
+                queryable = queryable.Where(c => c.Age == ageValue);
+                usedSpecificFilters = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(address))
+            {
+                queryable = queryable.Where(c => EF.Functions.Like(c.Address, $"%{address}%"));
+                usedSpecificFilters = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(governmentId))
+            {
+                queryable = queryable.Where(c => EF.Functions.Like(c.GovernmentId, $"%{governmentId}%"));
+                usedSpecificFilters = true;
+            }
+
+            // Only use fallback `query` if no specific filters are provided
+            if (!usedSpecificFilters && !string.IsNullOrWhiteSpace(query))
+            {
+                queryable = queryable.Where(c =>
                     EF.Functions.Like(c.Name, $"%{query}%") ||
                     EF.Functions.Like(c.GovernmentId, $"%{query}%") ||
                     EF.Functions.Like(c.Address, $"%{query}%") ||
-                    c.Age.ToString() == query)
-                .ToListAsync();
-
-            return new JsonResult(results);
-        }
-
-        public async Task<JsonResult> OnGetSearchCriminalsAsync(string query)
-        {
-            if (string.IsNullOrWhiteSpace(query))
-            {
-                var all = await _context.Criminals.ToListAsync();
-                return new JsonResult(all);
+                    c.Age.ToString() == query);
             }
 
-            var loweredQuery = query.ToLower();
-
-            var results = await _context.Criminals
-                .Where(c =>
-                    c.Name.ToLower().Contains(loweredQuery) ||
-                    c.GovernmentId.ToLower().Contains(loweredQuery) ||
-                    c.Crime.ToLower().Contains(loweredQuery) ||
-                    c.DateArrested.ToString().Contains(loweredQuery))
-                .ToListAsync();
-
+            var results = await queryable.ToListAsync();
             return new JsonResult(results);
         }
 
+
+        public async Task<JsonResult> OnGetSearchCriminalsAsync(
+    string? query,
+    string? name,
+    string? crime,
+    string? governmentId,
+    string? dateArrested)
+        {
+            IQueryable<Criminal> queryable = _context.Criminals;
+            bool usedSpecificFilters = false;
+
+            if (!string.IsNullOrWhiteSpace(name))
+            {
+                queryable = queryable.Where(c => EF.Functions.Like(c.Name, $"%{name}%"));
+                usedSpecificFilters = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(crime))
+            {
+                queryable = queryable.Where(c => EF.Functions.Like(c.Crime, $"%{crime}%"));
+                usedSpecificFilters = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(governmentId))
+            {
+                queryable = queryable.Where(c => EF.Functions.Like(c.GovernmentId, $"%{governmentId}%"));
+                usedSpecificFilters = true;
+            }
+
+            if (!string.IsNullOrWhiteSpace(dateArrested) &&
+                DateTime.TryParse(dateArrested, out DateTime parsedDate))
+            {
+                queryable = queryable.Where(c => c.DateArrested.Date == parsedDate.Date);
+                usedSpecificFilters = true;
+            }
+
+            if (!usedSpecificFilters && !string.IsNullOrWhiteSpace(query))
+            {
+                queryable = queryable.Where(c =>
+                    EF.Functions.Like(c.Name, $"%{query}%") ||
+                    EF.Functions.Like(c.Crime, $"%{query}%") ||
+                    EF.Functions.Like(c.GovernmentId, $"%{query}%") ||
+                    EF.Functions.Like(c.DateArrested.ToString(), $"%{query}%"));
+            }
+
+            var results = await queryable.ToListAsync();
+            return new JsonResult(results);
+        }
 
 
     }
