@@ -1,39 +1,82 @@
-Problem Statement
-In critical or emergency situations, police officers require immediate access to case records to make timely decisions. Traditional record management systems rely on manual search methods, which can be slow and impractical when officers’ hands or attention are occupied. There is a need for a fast, voice-activated system that allows officers to retrieve records using simple voice commands, enabling quicker responses and improved operational efficiency in the field.
-Problem Solution
-The solution integrates a voice-activated record retrieval module into the existing Police RMS. Officers can quickly fetch case records by speaking a name or case ID. Speech recognition processes the commands, reducing manual input, while existing role-based controls ensure secure access to sensitive data.
-System Workflow
-1. Voice Input Capture
-The system captures real-time voice input from the officer through a microphone-enabled interface.
+Problem Statement-
+In public safety domains like law enforcement, firefighting, and traffic control, quick access to records is essential for timely decision-making. Traditional Record Management Systems (RMS) rely on manual input, which can be slow or impractical when officers are on the move or handling emergencies. This creates a need for a voice-activated interface that allows hands-free, natural language access to records, improving efficiency and response times in the field.
+//
+Proposed Solution-
+A voice-enabled search feature was integrated into a simulated police records module. The system processes spoken natural language commands to extract both user intent and multiple relevant entities—such as names, government IDs, and address—which are then mapped into the existing search workflow. This allows for accurate and dynamic retrieval of citizen and criminal records based on contextual input. The solution supports moderately complex queries and enhances hands-free usability. While currently applied to the police module, the design is scalable and can be extended to other domains within a public RMS, such as fire and traffic departments.
+//
+System Workflow--
+1. **Voice Command Initiation**
+   The user activates the voice input by clicking a microphone button on the UI. This triggers the `webkitSpeechRecognition` engine built into the browser, which begins listening for spoken input.
+2. **Speech Recognition and Text Capture**
+   Once the user finishes speaking, the browser’s speech recognition engine transcribes the spoken audio into text. This text is automatically inserted into the command input field and sent to the Python backend (`/api/command`) via a POST request.
+3. **Natural Language Processing in Python**
+   The Flask backend receives the command string and performs the following:
+   * **Intent Detection**: Determines the user's intention, such as searching or looking up records.
+   * **Entity Extraction**: Identifies structured information such as:
+     * Name, age, address, government ID (for citizens)
+     * Name, crime type, arrest date, government ID (for criminals)
+   * **Module Identification**: Matches keywords to a module using a `module_synonyms` mapping file. For example, "suspect" maps to the "criminals" module.
+4. **Client-Side Module Switching and Filtering**
+   The backend responds with:
+   * The identified module (e.g., `citizen` or `criminal`)
+   * A dictionary of extracted entities
+     On the frontend:
+   * The relevant UI section/tab is auto-switched using `switchSection()`
+   * A JavaScript filter object is constructed from extracted entities
+5. **Data Query via Razor Page Handler**
+   Based on the module, the appropriate AJAX search function (`searchCitizen()` or `searchCriminal()`) is triggered.
+   These functions:
+   * Format query parameters from extracted entities
+   * Send a request to Razor Page handlers (`OnGetSearchCitizensAsync` or `OnGetSearchCriminalsAsync`) using the `?handler=SearchX` endpoint
+6. **Backend Filtering Logic** (C#)
+   On the server:
+   * The `ApplicationDbContext` queries the database using LINQ and `EF.Functions.Like()` for partial matches
+   * If multiple fields are present (e.g., name + age), combined filters are applied
+   * If no specific filters are found, a fallback generic search is used via a `query` parameter
+7. **Data Rendering on Frontend**
+   The filtered results are returned as JSON. JavaScript functions render the data in HTML tables dynamically:
+   * Highlighting is applied to matching terms
+   * If results are found, the first match is auto-scrolled into view and highlighted
+   * If no matches are found, a message is displayed within the table
+//
+Technology Stack-
+1. Frontend
+* **ASP.NET Core Razor Pages**
+  Used to build the user interface and handle server-side logic, including data binding, model validation, and database operations.
+* **JavaScript (ES6+)**
+  Manages client-side functionality such as:
+  * Dynamically displaying search results in tables.
+  * Making asynchronous requests to backend APIs without reloading the page.
+  * Capturing voice input using the Web Speech API.
+  * Supporting advanced search filters and updating the UI based on user interactions.
+* **HTML5 and CSS3**
+  Provides the structure and styling for a responsive and user-friendly interface.
+2. Backend
+* **Flask (Python)**
+  Acts as a lightweight backend service responsible for:
+  * Receiving voice commands from the frontend.
+  * Converting speech to text.
+  * Extracting key information (like names, dates, IDs) from the text using NLP techniques.
+  * Returning structured query data that the frontend uses to search records.
+* **Python NLP Tools**
+  Utilized for identifying important details and understanding the context in voice commands.
+3. Database
+* **Microsoft SQL Server**
+  Stores citizen and criminal records. The application accesses it through Entity Framework Core, which simplifies querying and updating the database.
+4. Integration and Communication
+* **RESTful API Design**
+  Facilitates loosely coupled communication between frontend and backend components:
+  * Stateless HTTP endpoints following REST conventions.
+  * JSON is used as the data interchange format for commands, search filters, and query results.
+  * Asynchronous fetch requests ensure non-blocking UI updates and real-time responsiveness.
+* **Speech Recognition and NLP Pipeline**
+  The audio input captured on the frontend is sent to the Flask service where:
+  * Speech recognition converts audio into text.
+  * NLP processes the text to identify user intent and extract multiple entities simultaneously.
+  * The structured output is relayed back to the frontend, which translates it into query parameters for existing search APIs.
 
-2. Speech-to-Text Conversion
-The live audio is sent to a Python backend where it is converted into text using a speech recognition engine.
-
-3. Intent and Entity Extraction
-The converted text is processed using NLP techniques to identify:
-  - Intent (e.g., search, find, look up)
-  - Entities (e.g., names, case IDs, dates)
-
-4. Query Routing Logic
-Based on identified keywords and context:
-  - If the input includes terms like 'find', 'search', 'look' with a name or case ID, the system sends a request to the existing API to fetch person-related records.
-  - If the input includes words like 'cases', 'reports', and a date, the system sends a request to the appropriate API to search records by date.
-
-5. Structured Query Formation
-The extracted data (entities + intent) is formed into a valid query format for backend APIs.
-
-6. Data Retrieval and Display
-The backend response is processed and displayed in a user-friendly interface, allowing hands-free viewing.
-Technology Stack
-Frontend
-ASP.NET Core (Razor Pages) — A lightweight frontend to simulate the RMS UI, capture voice input, and display fetched records.
-
-Backend (AI/ML Processing)
-Flask (Python) — Handles real-time speech-to-text, NLP for intent/entity extraction, and query routing.
-
-Database
-SQL (SQLite/MySQL) — Stores mock records to simulate RMS data and support API testing.
-Key Features
+//
+Key Features-
 1. Voice-Based Record Retrieval (Criminal/Citizen Lookup)
   - Officers can retrieve records by speaking a name or case ID.
   - If multiple matches occur:
