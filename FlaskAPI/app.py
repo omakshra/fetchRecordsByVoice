@@ -127,7 +127,7 @@ def add_generic_patterns():
         {"label": "PHONE", "pattern": [{"TEXT": {"REGEX": r"\d{3}-\d{3}-\d{4}"}}]},
         {"label": "EMAIL", "pattern": [{"TEXT": {"REGEX": r".+@.+\..+"}}]},
         {"label": "DATE", "pattern": [{"TEXT": {"REGEX": r"\d{1,2}/\d{1,2}/\d{2,4}"}}, {"TEXT": {"REGEX": r"last week|today|yesterday|this month|this week"}}]},
-        {"label": "GOVERNMENTID", "pattern": [{"TEXT": {"REGEX": r"CID\d{3,}"}}]},
+        {"label": "GOVERNMENTID", "pattern": [{"TEXT": {"REGEX": r"C[DI]?\d+"}}]},
         {"label": "LOCATION", "pattern": [{"LOWER": {"REGEX": r"\d+(st|nd|rd|th)\s+(avenue|street|road|blvd|lane)"}}]},
         {"label": "NAME", "pattern": [{"TEXT": {"REGEX": r"^[A-Z][a-z]+$"}}]},             
     ]

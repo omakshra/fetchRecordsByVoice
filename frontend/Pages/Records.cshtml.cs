@@ -120,7 +120,7 @@ namespace Frontend.Pages
 
             if (!string.IsNullOrWhiteSpace(governmentId))
             {
-                queryable = queryable.Where(c => EF.Functions.Like(c.GovernmentId, $"%{governmentId}%"));
+                queryable = queryable.Where(c => c.GovernmentId == governmentId);
                 usedSpecificFilters = true;
             }
 
@@ -163,7 +163,7 @@ namespace Frontend.Pages
 
             if (!string.IsNullOrWhiteSpace(governmentId))
             {
-                queryable = queryable.Where(c => EF.Functions.Like(c.GovernmentId, $"%{governmentId}%"));
+                queryable = queryable.Where(c => c.GovernmentId == governmentId);
                 usedSpecificFilters = true;
             }
 

@@ -109,4 +109,5 @@ list people involved in murder in criminal records
 Get crimes by ddd in criminal record
 get all citizen records whose age is 20
 find citizen named John De who is 20 years old 
-{ "entities": { "governmentid": "223000", "name": "John Doe" }, "intent": "search", "message": "Command processed: 'find citizen record for John Doe with government id 223000'", "module": "citizens" }
+find citizen record for John Doe with government id 223000
+find citizen record for John Doe with address scsd

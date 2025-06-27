@@ -124,7 +124,7 @@ function sendCommand() {
             };
 
             const module = data.module?.toLowerCase();
-            const sectionId = moduleMap[module] || 'citizen'; // fallback to citizen
+            const sectionId = moduleMap[module] || 'citizen';
 
             if (!sectionId) {
                 console.warn("❗ Unknown module:", module);
@@ -135,18 +135,33 @@ function sendCommand() {
 
             const entities = data.entities || {};
             const filters = {};
+            const queryParts = [];
 
-            // Copy relevant filters from entities with lowercase keys
-            for (const key in entities) {
-                filters[key.toLowerCase()] = Array.isArray(entities[key])
-                    ? entities[key].join(" ")
-                    : entities[key];
+            const keyMap = {
+                name: "name",
+                age: "age",
+                address: "address",
+                governmentid: "governmentId",
+                crime: "crime",
+                datearrested: "dateArrested"
+            };
+
+            for (const [key, value] of Object.entries(entities)) {
+                const mappedKey = keyMap[key.toLowerCase()];
+                if (mappedKey) {
+                    filters[mappedKey] = Array.isArray(value) ? value.join(" ") : value;
+                } else {
+                    queryParts.push(value);  // only add to query if not already mapped
+                }
             }
 
-            // Compose a query string for highlighting, joining all entity values
-            filters.query = Object.values(filters).join(" ");
+            // Only if queryParts is empty (no unknown fields), fallback to name/crime/etc. for highlight
+            if (queryParts.length === 0) {
+                queryParts.push(...Object.values(filters));
+            }
 
-            // Update input and trigger filtered search with filters
+            filters.query = queryParts.join(" ");
+
             if (sectionId === "citizen") {
                 document.getElementById("citizenSearchInput").value = filters.query;
                 searchCitizen(filters);
@@ -160,6 +175,7 @@ function sendCommand() {
             document.getElementById("status").textContent = "Error sending command.";
         });
 }
+
 
 const recordBtn = document.getElementById("recordBtn");
 let recognition;
