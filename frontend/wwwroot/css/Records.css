@@ -104,3 +104,31 @@ input[type="text"] {
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
 
 }
+
+.search-wrapper {
+    position: relative;
+    width: 300px;
+    margin-bottom: 10px;
+}
+
+    .search-wrapper input {
+        width: 100%;
+        padding: 8px 30px 8px 10px;
+        font-size: 14px;
+    }
+
+.clear-icon {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: pointer;
+    font-size: 16px;
+    color: #888;
+    user-select: none;
+}
+
+    .clear-icon:hover {
+        color: #000;
+    }
+

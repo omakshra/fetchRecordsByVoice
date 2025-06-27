@@ -44,7 +44,11 @@
         <button type="submit">Add Citizen</button>
     </form>
     <h5>Search Citizens</h5>
-    <input type="text" id="citizenSearchInput" placeholder="Search by Name or Gov. ID" onkeyup="searchCitizen()" />
+    <div class="search-wrapper">
+        <input type="text" id="citizenSearchInput" placeholder="Search by Name or Gov. ID" onkeyup="searchCitizen()" />
+        <span class="clear-icon" onclick="clearCitizenSearch()">❌</span>
+    </div>
+
 
     <h5>Citizen Records</h5>
     <table>
@@ -98,7 +102,10 @@
     </form>
 
     <h5>Search Criminals</h5>
-    <input type="text" id="criminalSearchInput" placeholder="Search by Name or Gov. ID" onkeyup="searchCriminal()" />
+    <div class="search-wrapper">
+        <input type="text" id="criminalSearchInput" placeholder="Search by Name or Gov. ID" onkeyup="searchCriminal()" />
+        <span class="clear-icon" onclick="clearCriminalSearch()">❌</span>
+    </div>
 
     <h5>Criminal Records</h5>
     <table>

@@ -51,6 +51,18 @@ function renderTableRows(data, tbody, fields, highlightTerm = "") {
 function escapeRegExp(string) {
     return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
+function clearCitizenSearch() {
+    const input = document.getElementById("citizenSearchInput");
+    input.value = "";
+    searchCitizen();
+}
+
+function clearCriminalSearch() {
+    const input = document.getElementById("criminalSearchInput");
+    input.value = "";
+    searchCriminal();
+}
+
 // Update searchCitizen to accept filters
 function searchCitizen(filters = {}) {
     // Build query string from filters object or fallback to input value
